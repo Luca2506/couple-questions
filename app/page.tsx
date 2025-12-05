@@ -409,7 +409,7 @@ export default function HomePage() {
                     <span>Du</span>
                     <span className="text-[12px]">♡</span>
                   </p>
-                  <p className="text-sm text-slate-100 whitespace-pre-wrap">
+                  <p className="text-sm text-slate-100 whitespace-pre-wrap break-words">
                     {myAnswer
                       ? myAnswer.answer_text
                       : "Noch nichts beantwortet."}
@@ -420,7 +420,7 @@ export default function HomePage() {
                     <span>Dein Gegenüber</span>
                     <span className="text-[12px] text-fuchsia-300">✧</span>
                   </p>
-                  <p className="text-sm text-slate-100 whitespace-pre-wrap">
+                  <p className="text-sm text-slate-100 whitespace-pre-wrap break-words">
                     {partnerAnswer
                       ? partnerAnswer.answer_text
                       : "Noch keine Antwort von der anderen Person."}
