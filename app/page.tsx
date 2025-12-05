@@ -3,18 +3,12 @@
 import { useEffect, useState, FormEvent } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Session } from "@supabase/supabase-js";
+import Link from "next/link";
 
 type Question = {
   id: string;
   question_date: string;
   text: string;
-};
-
-type Answer = {
-  id: string;
-  question_id: string;
-  user_id: string;
-  answer_text: string;
 };
 
 export default function HomePage() {
@@ -26,19 +20,16 @@ export default function HomePage() {
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
 
-  // Frage & Antworten
+  // Advent-Tür / Frage
   const [loadingQuestion, setLoadingQuestion] = useState(false);
   const [question, setQuestion] = useState<Question | null>(null);
-  const [myAnswer, setMyAnswer] = useState<Answer | null>(null);
-  const [partnerAnswer, setPartnerAnswer] = useState<Answer | null>(null);
-  const [answerText, setAnswerText] = useState("");
   const [qaMessage, setQaMessage] = useState<string | null>(null);
+  const [doorOpen, setDoorOpen] = useState(false);
 
-  // Beim Start: Session laden & Listener setzen
+  // Session laden + Listener
   useEffect(() => {
     const init = async () => {
       const { data, error } = await supabase.auth.getSession();
-
       if (!error && data.session) {
         setSession(data.session);
       }
@@ -57,19 +48,15 @@ export default function HomePage() {
     };
   }, []);
 
-  // Wenn Session da ist → Frage des Tages laden
+  // Frage laden, sobald eingeloggt
   useEffect(() => {
-    const user = session?.user;
-    if (!user) return;
-
-    const userId = user.id;
+    if (!session?.user) return;
 
     async function loadQuestion() {
       setLoadingQuestion(true);
       setQaMessage(null);
       setQuestion(null);
-      setMyAnswer(null);
-      setPartnerAnswer(null);
+      setDoorOpen(false);
 
       const today = new Date().toISOString().slice(0, 10);
 
@@ -86,40 +73,19 @@ export default function HomePage() {
       }
 
       if (!qData) {
-        setQaMessage("Für heute ist noch keine Frage hinterlegt.");
+        setQaMessage("Für heute ist noch keine Frage hinterlegt. 🕯️");
         setLoadingQuestion(false);
         return;
       }
 
-      const q = qData as Question;
-      setQuestion(q);
-
-      const { data: aData, error: aError } = await supabase
-        .from("answers")
-        .select("*")
-        .eq("question_id", q.id);
-
-      if (aError) {
-        setQaMessage("Fehler beim Laden der Antworten: " + aError.message);
-        setLoadingQuestion(false);
-        return;
-      }
-
-      const answers = (aData || []) as Answer[];
-      const mine = answers.find((a) => a.user_id === userId) || null;
-      const partner = answers.find((a) => a.user_id !== userId) || null;
-
-      setMyAnswer(mine);
-      setPartnerAnswer(partner);
-      setAnswerText(mine ? mine.answer_text : "");
-
+      setQuestion(qData as Question);
       setLoadingQuestion(false);
     }
 
     loadQuestion();
   }, [session]);
 
-  // Auth-Formular absenden
+  // Auth absenden
   async function handleAuthSubmit(e: FormEvent) {
     e.preventDefault();
     setAuthMessage(null);
@@ -155,58 +121,22 @@ export default function HomePage() {
     }
   }
 
-  // Antwort speichern
-  async function handleAnswerSubmit(e: FormEvent) {
-    e.preventDefault();
-    setQaMessage(null);
-
-    const user = session?.user;
-    if (!user || !question) {
-      setQaMessage("Kein User oder keine Frage geladen.");
-      return;
-    }
-
-    const userId = user.id;
-    const text = answerText.trim();
-    if (!text) {
-      setQaMessage("Bitte gib eine Antwort ein. ✨");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("answers")
-      .upsert(
-        {
-          question_id: question.id,
-          user_id: userId,
-          answer_text: text,
-        },
-        { onConflict: "question_id,user_id" }
-      )
-      .select()
-      .single();
-
-    if (error) {
-      setQaMessage("Fehler beim Speichern: " + error.message);
-      return;
-    }
-
-    const saved = data as Answer;
-    setMyAnswer(saved);
-    setQaMessage("Antwort gespeichert. ♡");
-  }
-
   async function handleLogout() {
     await supabase.auth.signOut();
     setSession(null);
     setQuestion(null);
-    setMyAnswer(null);
-    setPartnerAnswer(null);
-    setAnswerText("");
     setQaMessage(null);
+    setDoorOpen(false);
   }
 
-  // 1) Nicht eingeloggt → Auth-Formular
+  // Aktueller Tag (für Adventszahl)
+  const currentDay =
+    question?.question_date
+      ?.split("-")
+      ?.at(2)
+      ?.replace(/^0/, "") ?? new Date().getDate().toString();
+
+  // 1) Nicht eingeloggt → Login wie bisher
   if (!session?.user) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 flex items-center justify-center px-4">
@@ -232,14 +162,6 @@ export default function HomePage() {
             <div className="rounded-full border border-fuchsia-400/60 bg-slate-900/80 px-3 py-1 text-[11px] text-fuchsia-200 shadow-lg shadow-fuchsia-500/40">
               Day <span className="font-semibold">∞</span>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-[11px] text-slate-400 border border-dashed border-slate-700/70 rounded-2xl px-3 py-2 bg-slate-950/70">
-            <span className="text-fuchsia-300">✦</span>
-            <p>
-              Am besten jede*r macht sein eigenes Konto – ihr beantwortet
-              dieselbe Frage und seht dann beide Antworten nebeneinander.
-            </p>
           </div>
 
           <form onSubmit={handleAuthSubmit} className="space-y-4">
@@ -306,7 +228,7 @@ export default function HomePage() {
     );
   }
 
-  // 2) Eingeloggt → Frage des Tages
+  // 2) Eingeloggt → Adventstür mit heutiger Frage
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 flex items-center justify-center px-4 py-6">
       <div className="absolute inset-0 pointer-events-none opacity-40">
@@ -315,15 +237,15 @@ export default function HomePage() {
         <div className="absolute bottom-0 -right-10 h-52 w-52 rounded-full bg-indigo-500 blur-3xl" />
       </div>
 
-      <div className="relative w-full max-w-2xl rounded-3xl border border-fuchsia-500/40 bg-slate-950/85 shadow-[0_0_45px_rgba(236,72,153,0.5)] backdrop-blur-xl p-6 space-y-6">
+      <div className="relative w-full max-w-xl rounded-3xl border border-fuchsia-500/40 bg-slate-950/85 shadow-[0_0_45px_rgba(236,72,153,0.5)] backdrop-blur-xl p-6 space-y-6">
         <header className="flex items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1 rounded-full border border-fuchsia-400/60 bg-slate-950/80 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-fuchsia-200">
-              <span>couple ritual</span>
+              <span>advent door</span>
               <span className="text-[11px]">✦</span>
             </div>
             <h1 className="text-2xl font-semibold text-slate-50 mt-2 flex items-center gap-2">
-              <span>Frage des Tages</span>
+              <span>Heutige Tür</span>
               <span className="text-fuchsia-300 text-xl">♡</span>
             </h1>
             <p className="text-xs text-slate-400 mt-1">
@@ -342,7 +264,7 @@ export default function HomePage() {
         </header>
 
         {loadingQuestion && (
-          <p className="text-sm text-slate-300">Lade Frage…</p>
+          <p className="text-sm text-slate-300">Lade Tür & Frage…</p>
         )}
 
         {!loadingQuestion && !question && (
@@ -353,91 +275,69 @@ export default function HomePage() {
 
         {!loadingQuestion && question && (
           <>
-            <section className="space-y-3 border border-slate-800/80 rounded-2xl bg-slate-950/70 px-4 py-3">
-              <div className="flex items-center justify-between text-[11px] text-slate-400">
-                <span className="flex items-center gap-1">
-                  <span className="text-fuchsia-300">✶</span>
-                  {question.question_date}
-                </span>
-                <span className="text-slate-500">just for you two</span>
+            {/* Adventstür */}
+            <section className="flex flex-col items-center gap-4">
+              <div className="relative w-56 h-72 md:w-64 md:h-80">
+                {/* Tür-Hintergrund (Frage) */}
+                <div
+                  className={`absolute inset-0 rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-4 flex flex-col items-center justify-center text-center transition-opacity duration-500 ${
+                    doorOpen ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-2">
+                    Frage des Tages
+                  </p>
+                  <p className="text-sm text-slate-100 whitespace-pre-wrap">
+                    {question.text}
+                  </p>
+                </div>
+
+                {/* Tür-Front */}
+                <button
+                  type="button"
+                  onClick={() => setDoorOpen(true)}
+                  className={`absolute inset-0 rounded-3xl border border-fuchsia-500/60 bg-gradient-to-br from-fuchsia-700 via-slate-900 to-purple-800 shadow-[0_0_35px_rgba(236,72,153,0.6)] flex flex-col items-center justify-center text-center transition-all duration-500 ${
+                    doorOpen
+                      ? "opacity-0 translate-y-2 scale-95 pointer-events-none"
+                      : "opacity-100 translate-y-0 scale-100"
+                  }`}
+                >
+                  <span className="text-xs uppercase tracking-[0.25em] text-fuchsia-200/80 mb-2">
+                    Tür des Tages
+                  </span>
+                  <span className="text-6xl md:text-7xl font-bold text-slate-50 drop-shadow-[0_0_20px_rgba(15,23,42,0.9)]">
+                    {currentDay}
+                  </span>
+                  <span className="mt-3 text-[11px] text-fuchsia-100">
+                    Tippe, um die Tür zu öffnen ✧
+                  </span>
+                </button>
               </div>
-              <p className="text-lg font-medium text-slate-50">
-                {question.text}
+
+              {/* Hinweis unter der Tür */}
+              <p className="text-[11px] text-slate-400 text-center max-w-sm">
+                Erst Tür öffnen, zusammen die Frage lesen – und danach unten auf{" "}
+                <span className="text-fuchsia-300 font-semibold">
+                  „Beantworten“
+                </span>{" "}
+                gehen, um eure Antworten zu schreiben.
               </p>
             </section>
 
-            <section className="space-y-3">
-              <form
-                onSubmit={handleAnswerSubmit}
-                className="space-y-2 border border-slate-800/80 rounded-2xl bg-slate-950/70 px-4 py-3"
+            {/* Button "Beantworten" */}
+            <section className="flex flex-col items-center gap-2 pt-2">
+              <Link
+                href="/answer"
+                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-fuchsia-500 via-pink-500 to-violet-500 hover:from-fuchsia-400 hover:via-pink-400 hover:to-violet-400 px-6 py-2 text-sm font-medium text-white shadow-lg shadow-fuchsia-500/40 transition-all disabled:opacity-60"
               >
-                <label className="text-xs text-slate-200 flex items-center gap-1">
-                  <span>Deine Antwort</span>
-                  <span className="text-fuchsia-300 text-xs">✧</span>
-                </label>
-                <textarea
-                  rows={4}
-                  value={answerText}
-                  onChange={(e) => setAnswerText(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 focus:border-fuchsia-400 resize-y"
-                  placeholder="Schreib auf, was dir wirklich durch den Kopf geht…"
-                />
-                <div className="flex items-center justify-between gap-3 mt-1">
-                  <p className="text-[11px] text-slate-500">
-                    Ihr könnt unabhängig voneinander antworten und danach
-                    vergleichen. 🕯️
-                  </p>
-                  <button
-                    type="submit"
-                    className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-fuchsia-500 via-pink-500 to-violet-500 hover:from-fuchsia-400 hover:via-pink-400 hover:to-violet-400 px-4 py-1.5 text-xs font-medium text-white shadow-lg shadow-fuchsia-500/40 transition-all"
-                  >
-                    Antwort speichern
-                  </button>
-                </div>
-              </form>
+                Beantworten ✍️
+              </Link>
+              {qaMessage && (
+                <p className="text-[11px] text-fuchsia-200 whitespace-pre-wrap text-center">
+                  {qaMessage}
+                </p>
+              )}
             </section>
-
-            <section className="space-y-3 border-t border-slate-800/80 pt-3">
-              <h2 className="text-xs font-semibold text-slate-200 flex items-center gap-2">
-                <span className="h-px w-6 bg-slate-600" />
-                <span>Antwort-Übersicht</span>
-                <span className="h-px w-6 bg-slate-600" />
-              </h2>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-fuchsia-500/40 bg-slate-950/80 p-3 shadow-[0_0_25px_rgba(236,72,153,0.25)]">
-                  <p className="text-[11px] font-semibold text-fuchsia-200 mb-1 flex items-center gap-1">
-                    <span>Du</span>
-                    <span className="text-[12px]">♡</span>
-                  </p>
-                  <p className="text-sm text-slate-100 whitespace-pre-wrap break-words">
-                    {myAnswer
-                      ? myAnswer.answer_text
-                      : "Noch nichts beantwortet."}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-700 bg-slate-950/80 p-3">
-                  <p className="text-[11px] font-semibold text-slate-300 mb-1 flex items-center gap-1">
-                    <span>Dein Gegenüber</span>
-                    <span className="text-[12px] text-fuchsia-300">✧</span>
-                  </p>
-                  <p className="text-sm text-slate-100 whitespace-pre-wrap break-words">
-                    {partnerAnswer
-                      ? partnerAnswer.answer_text
-                      : "Noch keine Antwort von der anderen Person."}
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            {qaMessage && (
-              <p className="text-xs text-fuchsia-200 whitespace-pre-wrap">
-                {qaMessage}
-              </p>
-            )}
-
-            <p className="text-[10px] text-slate-500 text-center pt-1">
-              stay soft • stay spooky • stay in love
-            </p>
           </>
         )}
       </div>
