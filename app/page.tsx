@@ -71,10 +71,8 @@ export default function HomePage() {
       setMyAnswer(null);
       setPartnerAnswer(null);
 
-      // Heutiges Datum im Format YYYY-MM-DD
       const today = new Date().toISOString().slice(0, 10);
 
-      // 1. Frage für heute holen
       const { data: qData, error: qError } = await supabase
         .from("questions")
         .select("*")
@@ -96,7 +94,6 @@ export default function HomePage() {
       const q = qData as Question;
       setQuestion(q);
 
-      // 2. Antworten zu dieser Frage holen
       const { data: aData, error: aError } = await supabase
         .from("answers")
         .select("*")
@@ -212,154 +209,178 @@ export default function HomePage() {
   // 1) Nicht eingeloggt → Auth-Formular
   if (!session?.user) {
     return (
-      <main
-        style={{
-          maxWidth: 400,
-          margin: "40px auto",
-          fontFamily:
-            "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
-        }}
-      >
-        <h1 style={{ marginBottom: 16 }}>
-          {authMode === "signup" ? "Registrieren" : "Einloggen"}
-        </h1>
+      <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center px-4">
+        <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900/80 shadow-2xl backdrop-blur-sm p-6 space-y-6">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-50">
+              {authMode === "signup" ? "Konto anlegen" : "Einloggen"}
+            </h1>
+            <p className="text-sm text-slate-400 mt-1">
+              Kleine Q&A-App nur für euch zwei.
+            </p>
+          </div>
 
-        <form
-          onSubmit={handleAuthSubmit}
-          style={{ display: "flex", flexDirection: "column", gap: 8 }}
-        >
-          <input
-            type="email"
-            placeholder="E-Mail"
-            value={authEmail}
-            onChange={(e) => setAuthEmail(e.target.value)}
-            required
-            style={{ padding: 8 }}
-          />
-          <input
-            type="password"
-            placeholder="Passwort"
-            value={authPassword}
-            onChange={(e) => setAuthPassword(e.target.value)}
-            required
-            style={{ padding: 8 }}
-          />
+          <form onSubmit={handleAuthSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm text-slate-200">E-Mail</label>
+              <input
+                type="email"
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                required
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="deine@mail.de"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm text-slate-200">Passwort</label>
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                required
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Mind. 6 Zeichen"
+              />
+            </div>
 
-          <button type="submit" disabled={authLoading} style={{ padding: 8 }}>
-            {authLoading
-              ? "Bitte warten..."
-              : authMode === "signup"
-              ? "Konto anlegen"
-              : "Login"}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={authLoading}
+              className="w-full rounded-lg bg-indigo-500 hover:bg-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed py-2 text-sm font-medium text-white transition-colors"
+            >
+              {authLoading
+                ? "Bitte warten..."
+                : authMode === "signup"
+                ? "Konto erstellen"
+                : "Einloggen"}
+            </button>
+          </form>
 
-        <button
-          style={{ marginTop: 12 }}
-          onClick={() =>
-            setAuthMode(authMode === "signup" ? "login" : "signup")
-          }
-        >
-          {authMode === "signup"
-            ? "Schon ein Konto? Hier einloggen"
-            : "Noch kein Konto? Hier registrieren"}
-        </button>
-
-        {authMessage && (
-          <p
-            style={{
-              marginTop: 12,
-              whiteSpace: "pre-wrap",
-              color: "darkred",
-            }}
+          <button
+            type="button"
+            className="w-full text-sm text-slate-300 hover:text-white transition"
+            onClick={() =>
+              setAuthMode(authMode === "signup" ? "login" : "signup")
+            }
           >
-            {authMessage}
-          </p>
-        )}
+            {authMode === "signup"
+              ? "Schon ein Konto? Hier einloggen"
+              : "Noch kein Konto? Hier registrieren"}
+          </button>
+
+          {authMessage && (
+            <p className="text-sm text-amber-300 whitespace-pre-wrap">
+              {authMessage}
+            </p>
+          )}
+        </div>
       </main>
     );
   }
 
   // 2) Eingeloggt → Frage des Tages
   return (
-    <main
-      style={{
-        maxWidth: 700,
-        margin: "20px auto",
-        fontFamily:
-          "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
-        padding: 16,
-      }}
-    >
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <h1>Frage des Tages</h1>
-          <p style={{ fontSize: 14, opacity: 0.7 }}>
-            Eingeloggt als {session.user?.email}
+    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center px-4 py-6">
+      <div className="w-full max-w-2xl rounded-2xl border border-slate-700 bg-slate-900/80 shadow-2xl backdrop-blur-sm p-6 space-y-6">
+        <header className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-50">
+              Frage des Tages
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Eingeloggt als{" "}
+              <span className="font-medium text-slate-200">
+                {session.user?.email}
+              </span>
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="text-xs px-3 py-1.5 rounded-full border border-slate-600 text-slate-200 hover:bg-slate-800 transition"
+          >
+            Logout
+          </button>
+        </header>
+
+        {loadingQuestion && (
+          <p className="text-sm text-slate-300">Lade Frage…</p>
+        )}
+
+        {!loadingQuestion && !question && (
+          <p className="text-sm text-slate-300">
+            {qaMessage ?? "Heute ist keine Frage hinterlegt."}
           </p>
-        </div>
-        <button onClick={handleLogout}>Logout</button>
-      </header>
+        )}
 
-      {loadingQuestion && <p>Lade Frage...</p>}
+        {!loadingQuestion && question && (
+          <>
+            <section className="space-y-2">
+              <p className="text-xs uppercase tracking-wide text-slate-400">
+                {question.question_date}
+              </p>
+              <p className="text-lg font-medium text-slate-50">
+                {question.text}
+              </p>
+            </section>
 
-      {!loadingQuestion && !question && (
-        <p>{qaMessage ?? "Heute ist keine Frage hinterlegt."}</p>
-      )}
+            <section className="space-y-3">
+              <form onSubmit={handleAnswerSubmit} className="space-y-2">
+                <label className="text-sm text-slate-200">
+                  Deine Antwort
+                </label>
+                <textarea
+                  rows={4}
+                  value={answerText}
+                  onChange={(e) => setAnswerText(e.target.value)}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"
+                  placeholder="Schreib auf, was dir wirklich durch den Kopf geht…"
+                />
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-lg bg-indigo-500 hover:bg-indigo-400 px-4 py-2 text-sm font-medium text-white transition-colors"
+                >
+                  Antwort speichern
+                </button>
+              </form>
+            </section>
 
-      {!loadingQuestion && question && (
-        <>
-          <section style={{ marginBottom: 24 }}>
-            <p>
-              <strong>Datum:</strong> {question.question_date}
-            </p>
-            <p style={{ fontSize: 18, marginTop: 8 }}>{question.text}</p>
-          </section>
+            <section className="space-y-2 border-t border-slate-800 pt-3">
+              <h2 className="text-sm font-semibold text-slate-200">
+                Übersicht
+              </h2>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                  <p className="text-xs font-semibold text-slate-400 mb-1">
+                    Deine Antwort
+                  </p>
+                  <p className="text-sm text-slate-100 whitespace-pre-wrap">
+                    {myAnswer
+                      ? myAnswer.answer_text
+                      : "Noch nichts beantwortet."}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                  <p className="text-xs font-semibold text-slate-400 mb-1">
+                    Antwort deines Gegenübers
+                  </p>
+                  <p className="text-sm text-slate-100 whitespace-pre-wrap">
+                    {partnerAnswer
+                      ? partnerAnswer.answer_text
+                      : "Noch keine Antwort von der anderen Person."}
+                  </p>
+                </div>
+              </div>
+            </section>
 
-          <section style={{ marginBottom: 24 }}>
-            <form
-              onSubmit={handleAnswerSubmit}
-              style={{ display: "flex", flexDirection: "column", gap: 8 }}
-            >
-              <label>Deine Antwort:</label>
-              <textarea
-                rows={4}
-                value={answerText}
-                onChange={(e) => setAnswerText(e.target.value)}
-                style={{ padding: 8, resize: "vertical" }}
-              />
-              <button type="submit">Antwort speichern</button>
-            </form>
-          </section>
-
-          <section>
-            <h2>Übersicht</h2>
-            <p>
-              <strong>Deine Antwort:</strong>{" "}
-              {myAnswer ? myAnswer.answer_text : "Noch nichts beantwortet."}
-            </p>
-            <p>
-              <strong>Antwort deines Gegenübers:</strong>{" "}
-              {partnerAnswer
-                ? partnerAnswer.answer_text
-                : "Noch keine Antwort von der anderen Person."}
-            </p>
-          </section>
-
-          {qaMessage && (
-            <p style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
-              {qaMessage}
-            </p>
-          )}
-        </>
-      )}
+            {qaMessage && (
+              <p className="text-xs text-amber-300 whitespace-pre-wrap">
+                {qaMessage}
+              </p>
+            )}
+          </>
+        )}
+      </div>
     </main>
   );
 }
