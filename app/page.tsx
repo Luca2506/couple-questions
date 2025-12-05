@@ -46,11 +46,11 @@ export default function HomePage() {
 
     init();
 
-    const {
-      data: authListener,
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-    });
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        setSession(newSession);
+      }
+    );
 
     return () => {
       authListener.subscription.unsubscribe();
@@ -59,7 +59,10 @@ export default function HomePage() {
 
   // Wenn Session da ist → Frage des Tages laden
   useEffect(() => {
-    if (!session?.user) return;
+    const user = session?.user;
+    if (!user) return;
+
+    const userId = user.id;
 
     async function loadQuestion() {
       setLoadingQuestion(true);
@@ -67,8 +70,6 @@ export default function HomePage() {
       setQuestion(null);
       setMyAnswer(null);
       setPartnerAnswer(null);
-
-      const userId = session.user.id;
 
       // Heutiges Datum im Format YYYY-MM-DD
       const today = new Date().toISOString().slice(0, 10);
@@ -162,12 +163,13 @@ export default function HomePage() {
     e.preventDefault();
     setQaMessage(null);
 
-    if (!session?.user || !question) {
+    const user = session?.user;
+    if (!user || !question) {
       setQaMessage("Kein User oder keine Frage geladen.");
       return;
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
     const text = answerText.trim();
     if (!text) {
       setQaMessage("Bitte gib eine Antwort ein.");
@@ -214,7 +216,8 @@ export default function HomePage() {
         style={{
           maxWidth: 400,
           margin: "40px auto",
-          fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+          fontFamily:
+            "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
         }}
       >
         <h1 style={{ marginBottom: 16 }}>
@@ -263,7 +266,13 @@ export default function HomePage() {
         </button>
 
         {authMessage && (
-          <p style={{ marginTop: 12, whiteSpace: "pre-wrap", color: "darkred" }}>
+          <p
+            style={{
+              marginTop: 12,
+              whiteSpace: "pre-wrap",
+              color: "darkred",
+            }}
+          >
             {authMessage}
           </p>
         )}
@@ -277,7 +286,8 @@ export default function HomePage() {
       style={{
         maxWidth: 700,
         margin: "20px auto",
-        fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+        fontFamily:
+          "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
         padding: 16,
       }}
     >
@@ -292,7 +302,7 @@ export default function HomePage() {
         <div>
           <h1>Frage des Tages</h1>
           <p style={{ fontSize: 14, opacity: 0.7 }}>
-            Eingeloggt als {session.user.email}
+            Eingeloggt als {session.user?.email}
           </p>
         </div>
         <button onClick={handleLogout}>Logout</button>
@@ -344,7 +354,9 @@ export default function HomePage() {
           </section>
 
           {qaMessage && (
-            <p style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>{qaMessage}</p>
+            <p style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+              {qaMessage}
+            </p>
           )}
         </>
       )}
